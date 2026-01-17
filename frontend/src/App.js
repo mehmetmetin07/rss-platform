@@ -145,6 +145,7 @@ function HomePage({ stats }) {
 function NewsPage() {
   const [news, setNews] = useState([]);
   const [loading, setLoading] = useState(true);
+  const { t } = useLanguage();
 
   useEffect(() => {
     api.getNews({ limit: 50 }).then(r => {
@@ -157,7 +158,7 @@ function NewsPage() {
 
   return (
     <div className="page">
-      <h1>News</h1>
+      <h1>{t('newsTitle')}</h1>
       <div className="news-list">
         {news.map(item => (
           <Link key={item.id} to={`/news/${item.id}`} className={`news-item-card ${item.image_url ? 'has-image' : ''}`}>
@@ -241,13 +242,13 @@ function StocksPage() {
   const fetchPrices = async () => {
     const token = localStorage.getItem('token');
     if (!token) {
-      alert('Please login first');
+      alert(t('pleaseLogin'));
       return;
     }
     try {
-      setMessage('Updating prices...');
+      setMessage(t('updatingPrices'));
       await api.updateAllPrices();
-      setMessage('Prices updated!');
+      setMessage(t('pricesUpdated'));
       fetchStocks();
     } catch (e) {
       setMessage('Error: ' + e.message);
@@ -258,11 +259,11 @@ function StocksPage() {
     e.preventDefault();
     const token = localStorage.getItem('token');
     if (!token) {
-      setMessage('Please login first');
+      setMessage(t('pleaseLogin'));
       return;
     }
     try {
-      setMessage('Adding stock...');
+      setMessage(t('addStock') + '...');
       await api.addStock({ symbol: newSymbol.toUpperCase() });
       setMessage(`${newSymbol.toUpperCase()} added!`);
       setNewSymbol('');
@@ -412,6 +413,7 @@ function SourcesPage() {
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ name: '', url: '', category: 'general' });
   const [message, setMessage] = useState('');
+  const { t } = useLanguage();
 
   const fetchSources = () => {
     api.getSources().then(r => {
@@ -426,12 +428,12 @@ function SourcesPage() {
     e.preventDefault();
     const token = localStorage.getItem('token');
     if (!token) {
-      setMessage('Please login to add sources');
+      setMessage(t('pleaseLoginAddSource'));
       return;
     }
     try {
       await api.addSource(form);
-      setMessage('Source added!');
+      setMessage(t('sourceAdded'));
       setForm({ name: '', url: '', category: 'general' });
       setShowForm(false);
       fetchSources();
@@ -441,7 +443,7 @@ function SourcesPage() {
   };
 
   const handleDelete = async (id) => {
-    if (!window.confirm('Delete this source?')) return;
+    if (!window.confirm(t('deleteConfirm'))) return;
     try {
       await api.deleteSource(id);
       fetchSources();
@@ -453,13 +455,13 @@ function SourcesPage() {
   const handleFetch = async () => {
     const token = localStorage.getItem('token');
     if (!token) {
-      alert('Please login to fetch news');
+      alert(t('pleaseLoginFetchNews'));
       return;
     }
     try {
-      setMessage('Fetching news...');
+      setMessage(t('fetchingNews'));
       const result = await api.fetchNews();
-      setMessage(`Fetched! ${result.data?.length || 0} sources processed`);
+      setMessage(t('fetchedNews').replace('{count}', result.data?.length || 0));
     } catch (e) {
       setMessage('Error: ' + e.message);
     }
@@ -469,9 +471,9 @@ function SourcesPage() {
     try {
       const result = await api.testSource(url);
       if (result.data?.success) {
-        alert(`Success! Found ${result.data.itemCount} items`);
+        alert(t('itemCount').replace('{count}', result.data.itemCount));
       } else {
-        alert('Failed: ' + (result.data?.error || 'Unknown error'));
+        alert(t('failed') + (result.data?.error || 'Unknown error'));
       }
     } catch (e) {
       alert('Error: ' + e.message);
@@ -483,11 +485,11 @@ function SourcesPage() {
   return (
     <div className="page">
       <div className="page-header">
-        <h1>RSS Sources</h1>
+        <h1>{t('rssSourcesTitle')}</h1>
         <div className="header-actions">
-          <button onClick={handleFetch} className="btn btn-secondary">Fetch All News</button>
+          <button onClick={handleFetch} className="btn btn-secondary">{t('fetchAllNews')}</button>
           <button onClick={() => setShowForm(!showForm)} className="btn btn-primary">
-            {showForm ? 'Cancel' : '+ Add Source'}
+            {showForm ? t('cancel') : `+ ${t('addSource')}`}
           </button>
         </div>
       </div>
@@ -499,7 +501,7 @@ function SourcesPage() {
           <input
             type="text"
             className="input"
-            placeholder="Source Name"
+            placeholder={t('sourceName')}
             value={form.name}
             onChange={e => setForm({ ...form, name: e.target.value })}
             required
@@ -507,7 +509,7 @@ function SourcesPage() {
           <input
             type="url"
             className="input"
-            placeholder="RSS URL (e.g., https://example.com/feed.xml)"
+            placeholder={t('sourceUrl')}
             value={form.url}
             onChange={e => setForm({ ...form, url: e.target.value })}
             required
@@ -522,7 +524,7 @@ function SourcesPage() {
             <option value="business">Business</option>
             <option value="finance">Finance</option>
           </select>
-          <button type="submit" className="btn btn-primary">Add Source</button>
+          <button type="submit" className="btn btn-primary">{t('add')}</button>
         </form>
       )}
 
@@ -538,12 +540,12 @@ function SourcesPage() {
               </div>
             </div>
             <div className="source-actions">
-              <button onClick={() => handleTest(source.url)} className="btn btn-secondary btn-sm">Test</button>
-              <button onClick={() => handleDelete(source.id)} className="btn btn-danger btn-sm">Delete</button>
+              <button onClick={() => handleTest(source.url)} className="btn btn-secondary btn-sm">{t('test')}</button>
+              <button onClick={() => handleDelete(source.id)} className="btn btn-danger btn-sm">{t('delete')}</button>
             </div>
           </div>
         ))}
-        {sources.length === 0 && <p className="empty-state">No RSS sources. Add one above!</p>}
+        {sources.length === 0 && <p className="empty-state">{t('noSources')}</p>}
       </div>
     </div>
   );
@@ -554,6 +556,7 @@ function LoginPage() {
   const [form, setForm] = useState({ email: '', password: '' });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const { t } = useLanguage();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -566,7 +569,7 @@ function LoginPage() {
       navigate('/');
       window.location.reload();
     } catch (err) {
-      setError(err.message || 'Login failed');
+      setError(err.message || t('loginFailed'));
     } finally {
       setLoading(false);
     }
@@ -575,12 +578,12 @@ function LoginPage() {
   return (
     <div className="auth-page">
       <form onSubmit={handleSubmit} className="auth-form">
-        <h2>Login</h2>
+        <h2>{t('login')}</h2>
         {error && <div className="error">{error}</div>}
         <input
           type="email"
           className="input"
-          placeholder="Email"
+          placeholder={t('emailPlaceholder')}
           value={form.email}
           onChange={e => setForm({ ...form, email: e.target.value })}
           required
@@ -588,16 +591,16 @@ function LoginPage() {
         <input
           type="password"
           className="input"
-          placeholder="Password"
+          placeholder={t('passwordPlaceholder')}
           value={form.password}
           onChange={e => setForm({ ...form, password: e.target.value })}
           required
         />
         <button type="submit" className="btn btn-primary" disabled={loading}>
-          {loading ? 'Logging in...' : 'Login'}
+          {loading ? t('loggingIn') : t('login')}
         </button>
         <p className="auth-switch">
-          Don't have an account? <Link to="/register">Register</Link>
+          {t('dontHaveAccount')} <Link to="/register">{t('register')}</Link>
         </p>
       </form>
     </div>
@@ -609,6 +612,7 @@ function RegisterPage() {
   const [form, setForm] = useState({ email: '', password: '', full_name: '' });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const { t } = useLanguage();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -621,7 +625,7 @@ function RegisterPage() {
       navigate('/');
       window.location.reload();
     } catch (err) {
-      setError(err.message || 'Registration failed');
+      setError(err.message || t('registrationFailed'));
     } finally {
       setLoading(false);
     }
@@ -630,12 +634,12 @@ function RegisterPage() {
   return (
     <div className="auth-page">
       <form onSubmit={handleSubmit} className="auth-form">
-        <h2>Register</h2>
+        <h2>{t('register')}</h2>
         {error && <div className="error">{error}</div>}
         <input
           type="text"
           className="input"
-          placeholder="Full Name"
+          placeholder={t('fullNamePlaceholder')}
           value={form.full_name}
           onChange={e => setForm({ ...form, full_name: e.target.value })}
           required
@@ -643,7 +647,7 @@ function RegisterPage() {
         <input
           type="email"
           className="input"
-          placeholder="Email"
+          placeholder={t('emailPlaceholder')}
           value={form.email}
           onChange={e => setForm({ ...form, email: e.target.value })}
           required
@@ -651,17 +655,17 @@ function RegisterPage() {
         <input
           type="password"
           className="input"
-          placeholder="Password (min 6 characters)"
+          placeholder={t('passwordMinLength')}
           value={form.password}
           onChange={e => setForm({ ...form, password: e.target.value })}
           required
           minLength={6}
         />
         <button type="submit" className="btn btn-primary" disabled={loading}>
-          {loading ? 'Registering...' : 'Register'}
+          {loading ? t('registering') : t('register')}
         </button>
         <p className="auth-switch">
-          Already have an account? <Link to="/login">Login</Link>
+          {t('alreadyHaveAccount')} <Link to="/login">{t('login')}</Link>
         </p>
       </form>
     </div>

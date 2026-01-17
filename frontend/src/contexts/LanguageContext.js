@@ -22,6 +22,7 @@ export const translations = {
         add: 'Add',
         search: 'Search',
         filter: 'Filter',
+        test: 'Test',
 
         // Stock Page
         stocksTitle: 'Stocks',
@@ -55,6 +56,7 @@ export const translations = {
         category: 'Category',
         status: 'Status',
         lastFetched: 'Last Fetched',
+        noSources: 'No RSS sources. Add one above!',
 
         // Time periods
         '1W': '1 Week',
@@ -68,8 +70,22 @@ export const translations = {
         passwordPlaceholder: 'Password',
         fullNamePlaceholder: 'Full Name',
         register: 'Register',
+        loggingIn: 'Logging in...',
+        registering: 'Registering...',
+        passwordMinLength: 'Password (min 6 characters)',
         alreadyHaveAccount: 'Already have an account?',
         dontHaveAccount: "Don't have an account?",
+        loginFailed: 'Login failed',
+        registrationFailed: 'Registration failed',
+        pleaseLogin: 'Please login first',
+        pleaseLoginAddSource: 'Please login to add sources',
+        pleaseLoginFetchNews: 'Please login to fetch news',
+        sourceAdded: 'Source added!',
+        fetchedNews: 'Fetched! {count} sources processed',
+        deleteConfirm: 'Delete this source?',
+        itemCount: 'Success! Found {count} items',
+        failed: 'Failed: ',
+        error: 'Error: ',
 
         // Home Page
         heroSubtitle: 'AI-powered news and stock analytics',
@@ -107,6 +123,7 @@ export const translations = {
         add: 'Ekle',
         search: 'Ara',
         filter: 'Filtrele',
+        test: 'Test Et',
 
         // Stock Page
         stocksTitle: 'Hisseler',
@@ -140,6 +157,7 @@ export const translations = {
         category: 'Kategori',
         status: 'Durum',
         lastFetched: 'Son Çekilme',
+        noSources: 'RSS kaynağı yok. Yukarıdan ekleyin!',
 
         // Time periods
         '1W': '1 Hafta',
@@ -153,8 +171,22 @@ export const translations = {
         passwordPlaceholder: 'Şifre',
         fullNamePlaceholder: 'Ad Soyad',
         register: 'Kayıt Ol',
+        loggingIn: 'Giriş yapılıyor...',
+        registering: 'Kayıt olunuyor...',
+        passwordMinLength: 'Şifre (en az 6 karakter)',
         alreadyHaveAccount: 'Hesabınız var mı?',
         dontHaveAccount: 'Hesabınız yok mu?',
+        loginFailed: 'Giriş başarısız',
+        registrationFailed: 'Kayıt başarısız',
+        pleaseLogin: 'Lütfen önce giriş yapın',
+        pleaseLoginAddSource: 'Kaynak eklemek için lütfen giriş yapın',
+        pleaseLoginFetchNews: 'Haberleri çekmek için lütfen giriş yapın',
+        sourceAdded: 'Kaynak eklendi!',
+        fetchedNews: 'Çekildi! {count} kaynak işlendi',
+        deleteConfirm: 'Bu kaynağı silmek istiyor musunuz?',
+        itemCount: 'Başarılı! {count} öğe bulundu',
+        failed: 'Başarısız: ',
+        error: 'Hata: ',
 
         // Home Page
         heroSubtitle: 'Yapay zeka destekli haber ve hisse analizi',
