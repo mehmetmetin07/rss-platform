@@ -6,6 +6,7 @@ const rateLimit = require('express-rate-limit');
 
 const authRoutes = require('./routes/auth');
 const newsRoutes = require('./routes/news');
+const stocksRoutes = require('./routes/stocks');
 const { auth } = require('./middleware/auth');
 const pool = require('./config/database');
 const rssCron = require('./jobs/rssCron');
@@ -37,6 +38,7 @@ app.use(express.urlencoded({ extended: true }));
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/news', newsRoutes);
+app.use('/api/stocks', stocksRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {
