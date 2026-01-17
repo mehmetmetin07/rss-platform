@@ -3,6 +3,7 @@ const News = require('../models/News');
 const RssSource = require('../models/RssSource');
 const RSSParserService = require('../services/rssParser');
 const DeduplicationService = require('../services/deduplication');
+const AIAnalysisJob = require('../jobs/aiAnalysis');
 const { auth } = require('../middleware/auth');
 
 const router = express.Router();
@@ -259,6 +260,70 @@ router.delete('/sources/:id', auth, async (req, res) => {
     });
   } catch (error) {
     console.error('Delete source error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Sunucu hatası'
+    });
+  }
+});
+
+// AI analizi başlat (protected endpoint)
+router.post('/ai/analyze', auth, async (req, res) => {
+  try {
+    const aiJob = AIAnalysisJob.getInstance();
+    await aiJob.analyzePendingNews();
+
+    res.json({
+      success: true,
+      message: 'AI analizi başlatıldı'
+    });
+  } catch (error) {
+    console.error('AI analyze error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Sunucu hatası'
+    });
+  }
+});
+
+// Haberi yeniden analiz et (protected endpoint)
+router.post('/:id/ai/reanalyze', auth, async (req, res) => {
+  try {
+    const analysis = await AIAnalysisJob.getInstance().reanalyzeNews(req.params.id);
+
+    res.json({
+      success: true,
+      message: 'Haber yeniden analiz edildi',
+      data: analysis
+    });
+  } catch (error) {
+    console.error('AI reanalyze error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Sunucu hatası'
+    });
+  }
+});
+
+// Piyasa trend analizi (protected endpoint)
+router.get('/ai/trend', async (req, res) => {
+  try {
+    const trend = await AIAnalysisJob.getInstance().analyzeMarketTrend();
+
+    if (!trend) {
+      return res.json({
+        success: true,
+        message: 'Trend analizi için yeterli veri yok',
+        data: null
+      });
+    }
+
+    res.json({
+      success: true,
+      data: trend
+    });
+  } catch (error) {
+    console.error('AI trend error:', error);
     res.status(500).json({
       success: false,
       message: 'Sunucu hatası'

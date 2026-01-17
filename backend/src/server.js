@@ -10,6 +10,7 @@ const stocksRoutes = require('./routes/stocks');
 const { auth } = require('./middleware/auth');
 const pool = require('./config/database');
 const rssCron = require('./jobs/rssCron');
+const AIAnalysisJob = require('./jobs/aiAnalysis');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -97,7 +98,8 @@ app.use((err, req, res, next) => {
 // Start RSS cron job
 rssCron.start();
 
-// Start server
+// Start AI analysis job
+console.log('🤖 AI analizi hazır');
 app.listen(PORT, () => {
   console.log(`🚀 Server ${PORT} portunda çalışıyor`);
   console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
