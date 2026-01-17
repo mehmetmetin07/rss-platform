@@ -1,41 +1,24 @@
-const { Pool } = require('pg');
-
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-});
+const db = require('../config/database');
+const bcrypt = require('bcryptjs');
 
 class User {
-  static async findByEmail(email) {
-    const result = await pool.query(
-      'SELECT * FROM users WHERE email = $1',
-      [email]
-    );
-    return result.rows[0];
+  static findByEmail(email) {
+    return db.prepare('SELECT * FROM users WHERE email = ?').get(email);
   }
 
-  static async findById(id) {
-    const result = await pool.query(
-      'SELECT * FROM users WHERE id = $1',
-      [id]
-    );
-    return result.rows[0];
+  static findById(id) {
+    return db.prepare('SELECT * FROM users WHERE id = ?').get(id);
   }
 
-  static async create({ email, password_hash, full_name, role = 'user' }) {
-    const result = await pool.query(
-      `INSERT INTO users (email, password_hash, full_name, role)
-       VALUES ($1, $2, $3, $4)
-       RETURNING *`,
-      [email, password_hash, full_name, role]
-    );
-    return result.rows[0];
+  static create({ email, password_hash, full_name, role = 'user' }) {
+    const result = db.prepare(`
+      INSERT INTO users (email, password_hash, full_name, role) VALUES (?, ?, ?, ?)
+    `).run(email, password_hash, full_name, role);
+    return this.findById(result.lastInsertRowid);
   }
 
-  static async updateLastLogin(id) {
-    await pool.query(
-      'UPDATE users SET updated_at = CURRENT_TIMESTAMP WHERE id = $1',
-      [id]
-    );
+  static updateLastLogin(id) {
+    db.prepare('UPDATE users SET updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(id);
   }
 }
 

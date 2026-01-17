@@ -1,0 +1,75 @@
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: rss-platform-db
+    environment:
+      POSTGRES_DB: rss_platform
+      POSTGRES_USER: rss_user
+      POSTGRES_PASSWORD: rss_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U rss_user -d rss_platform"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - rss-network
+
+  # Backend API
+  backend:
+    build: ./backend
+    container_name: rss-platform-backend
+    environment:
+      NODE_ENV: development
+      PORT: 5000
+      DATABASE_URL: postgresql://rss_user:rss_password@postgres:5432/rss_platform
+      JWT_SECRET: your-super-secret-jwt-key-change-in-production
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      EMAIL_HOST: ${EMAIL_HOST:-smtp.gmail.com}
+      EMAIL_PORT: ${EMAIL_PORT:-587}
+      EMAIL_USER: ${EMAIL_USER:-}
+      EMAIL_PASSWORD: ${EMAIL_PASSWORD:-}
+      EMAIL_FROM: ${EMAIL_FROM:-noreply@rss-platform.com}
+      FRONTEND_URL: http://localhost:3000
+    ports:
+      - "5000:5000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+    networks:
+      - rss-network
+    command: npm start
+
+  # Frontend
+  frontend:
+    build: ./frontend
+    container_name: rss-platform-frontend
+    environment:
+      REACT_APP_API_URL: http://localhost:5000/api
+      REACT_APP_FRONTEND_URL: http://localhost:3000
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    networks:
+      - rss-network
+    stdin_open: true
+    tty: true
+    command: npm start
+
+volumes:
+  postgres_data:
+
+networks:
+  rss-network:
+    driver: bridge

@@ -1,232 +1,238 @@
 const express = require('express');
 const Stock = require('../models/Stock');
 const PriceHistory = require('../models/PriceHistory');
-const YahooFinanceService = require('../services/yahooFinance');
+const StockService = require('../services/yahooFinance');
 const { auth } = require('../middleware/auth');
 
 const router = express.Router();
 
-// Tüm hisse senetlerini listele
-router.get('/', async (req, res) => {
+router.get('/', (req, res) => {
   try {
     const sector = req.query.sector;
-    
-    let stocks;
-    if (sector) {
-      stocks = await Stock.findBySector(sector);
-    } else {
-      stocks = await Stock.findAll();
-    }
-
-    res.json({
-      success: true,
-      data: stocks
-    });
+    const stocks = sector ? Stock.findBySector(sector) : Stock.findAll();
+    res.json({ success: true, data: stocks });
   } catch (error) {
-    console.error('Get stocks error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Sunucu hatası'
-    });
+    console.error('Stocks error:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
   }
 });
 
-// Hisse detayları
-router.get('/:symbol', async (req, res) => {
+// Add a new stock by symbol
+router.post('/', auth, async (req, res) => {
   try {
-    const stock = await Stock.findBySymbol(req.params.symbol);
-
-    if (!stock) {
-      return res.status(404).json({
-        success: false,
-        message: 'Hisse bulunamadı'
-      });
+    const { symbol } = req.body;
+    if (!symbol) {
+      return res.status(400).json({ success: false, message: 'Symbol is required' });
     }
 
-    // En son fiyatı getir
-    const latestPrice = await PriceHistory.getLatestPrice(stock.id);
+    const upperSymbol = symbol.toUpperCase();
 
+    // Check if already exists
+    let stock = Stock.findBySymbol(upperSymbol);
+    if (stock) {
+      return res.json({ success: true, message: 'Stock already exists', data: stock });
+    }
+
+    // Fetch from Yahoo Finance to validate and get info
+    const data = await StockService.getPrice(upperSymbol);
+    if (!data) {
+      return res.status(400).json({ success: false, message: 'Invalid stock symbol or unable to fetch data' });
+    }
+
+    // Create the stock
+    stock = Stock.create({
+      symbol: upperSymbol,
+      name: data.name || upperSymbol,
+      sector: 'Unknown',
+      exchange: 'NASDAQ',
+      currency: data.currency
+    });
+
+    // Update with current price
+    Stock.updatePrice(stock.id, data.price, data.changePercent, data.currency);
+
+    res.json({ success: true, message: 'Stock added successfully', data: stock });
+  } catch (error) {
+    console.error('Add stock error:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+router.get('/prices/latest', (req, res) => {
+  try {
+    const prices = PriceHistory.getLatestPrices();
+    res.json({ success: true, data: prices });
+  } catch (error) {
+    console.error('Prices error:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+router.get('/sectors/list', (req, res) => {
+  try {
+    const stocks = Stock.findAll();
+    const sectors = [...new Set(stocks.map(s => s.sector).filter(Boolean))];
+    res.json({ success: true, data: sectors });
+  } catch (error) {
+    console.error('Sectors error:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+router.post('/prices/update-all', auth, async (req, res) => {
+  try {
+    const count = await StockService.updateAllPrices();
+    res.json({ success: true, message: `${count} stocks updated`, data: { count } });
+  } catch (error) {
+    console.error('Update prices error:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+router.get('/:symbol', async (req, res) => {
+  try {
+    const symbol = req.params.symbol.toUpperCase();
+    let stock = Stock.findBySymbol(symbol);
+
+    if (!stock) {
+      const data = await StockService.getPrice(symbol);
+      if (data) {
+        // Create the stock
+        stock = Stock.create({
+          symbol,
+          name: data.name,
+          sector: 'Unknown',
+          exchange: 'NASDAQ',
+          currency: data.currency
+        });
+
+        // Update with current price
+        Stock.updatePrice(stock.id, data.price, data.changePercent, data.currency);
+      }
+    }
+
+    if (!stock) {
+      return res.status(404).json({ success: false, message: 'Stock not found' });
+    }
+
+    const latest = PriceHistory.getLatestPrice(stock.id);
     res.json({
       success: true,
       data: {
         ...stock,
-        latestPrice
+        price: latest?.price || stock.current_price || 0,
+        change_percent: stock.change_percent || 0
       }
     });
   } catch (error) {
-    console.error('Get stock error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Sunucu hatası'
-    });
+    console.error('Stock detail error:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
   }
 });
 
-// Hisse fiyat geçmişi
-router.get('/:symbol/history', async (req, res) => {
+// Get chart data from Yahoo Finance
+router.get('/:symbol/chart', async (req, res) => {
   try {
-    const symbol = req.params.symbol;
-    const { limit, fromDate, toDate } = req.query;
+    const symbol = req.params.symbol.toUpperCase();
+    const period = req.query.period || '1M';
 
-    const history = await PriceHistory.findBySymbol(symbol, {
-      limit: parseInt(limit) || 100,
-      fromDate,
-      toDate
-    });
+    // Calculate date range based on period
+    const endDate = new Date();
+    const startDate = new Date();
 
-    res.json({
-      success: true,
-      data: history
-    });
-  } catch (error) {
- console.error('Get price history error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Sunucu hatası'
-    });
-  }
-});
-
-// Tüm hisse senedi fiyatları (canlı)
-router.get('/prices/latest', async (req, res) => {
-  try {
-    const prices = await PriceHistory.getLatestPrices();
-
-    res.json({
-      success: true,
-      data: prices
-    });
-  } catch (error) {
-    console.error('Get latest prices error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Sunucu hatası'
-    });
-  }
-});
-
-// Hisse senedi doğrulama
-router.get('/:symbol/validate', async (req, res) => {
-  try {
-    const validation = await YahooFinanceService.validateSymbol(req.params.symbol);
-
-    res.json({
-      success: true,
-      data: validation
-    });
-  } catch (error) {
-    console.error('Validate symbol error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Sunucu hatası'
-    });
-  }
-});
-
-// Manuel fiyat güncelleme (protected)
-router.post('/prices/update', auth, async (req, res) => {
-  try {
-    const { symbols } = req.body;
-
-    if (!symbols || !Array.isArray(symbols)) {
-      return res.status(400).json({
-        success: false,
-        message: 'Semboller dizisi gerekli'
-      });
+    switch (period) {
+      case '1W': startDate.setDate(endDate.getDate() - 7); break;
+      case '1M': startDate.setMonth(endDate.getMonth() - 1); break;
+      case '3M': startDate.setMonth(endDate.getMonth() - 3); break;
+      case '6M': startDate.setMonth(endDate.getMonth() - 6); break;
+      case '1Y': startDate.setFullYear(endDate.getFullYear() - 1); break;
+      default: startDate.setMonth(endDate.getMonth() - 1);
     }
 
-    let savedCount = 0;
-    const results = [];
+    // Fetch chart data from Yahoo Finance using chart() method
+    const yf = require('yahoo-finance2').default;
+    const yfInstance = new yf();
 
-    for (const symbol of symbols) {
-      try {
-        await YahooFinanceService.savePriceData(symbol);
-        savedCount++;
-        results.push({ symbol, status: 'success' });
-      } catch (error) {
-        results.push({ 
-          symbol, 
-          status: 'error', 
-          error: error.message 
-        });
-      }
+    // Use query options for chart
+    const queryOptions = {
+      period1: startDate,
+      period2: endDate,
+      interval: period === '1W' ? '1h' : '1d'
+    };
+
+    const result = await yfInstance.chart(symbol, queryOptions);
+
+    // Format data for chart from chart() result structure
+    // chart() returns { meta: {}, quotes: [] }
+    const quotes = result.quotes || [];
+    const chartData = quotes.map(item => ({
+      date: new Date(item.date).toLocaleDateString(),
+      open: item.open,
+      high: item.high,
+      low: item.low,
+      close: item.close,
+      volume: item.volume
+    }));
+
+    res.json({ success: true, data: chartData });
+  } catch (error) {
+    console.error('Chart error:', error.message);
+
+    // Fallback to local price history if Yahoo fails
+    const history = PriceHistory.findBySymbol(req.params.symbol.toUpperCase(), { limit: 30 });
+    const chartData = history.reverse().map(h => ({
+      date: new Date(h.recorded_at).toLocaleDateString(),
+      open: h.open_price || h.price,
+      high: h.high_price || h.price,
+      low: h.low_price || h.price,
+      close: h.price,
+      volume: h.volume || 0
+    }));
+
+    res.json({ success: true, data: chartData, source: 'local' });
+  }
+});
+
+router.get('/:symbol/history', (req, res) => {
+  try {
+    const symbol = req.params.symbol.toUpperCase();
+    const limit = parseInt(req.query.limit) || 30;
+    const history = PriceHistory.findBySymbol(symbol, { limit });
+    res.json({ success: true, data: history });
+  } catch (error) {
+    console.error('History error:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+router.post('/:symbol/fetch', auth, async (req, res) => {
+  try {
+    const symbol = req.params.symbol.toUpperCase();
+    let stock = Stock.findBySymbol(symbol);
+
+    const data = await StockService.getPrice(symbol);
+    if (!data) {
+      return res.status(400).json({ success: false, message: 'Could not fetch stock data' });
     }
 
-    res.json({
-      success: true,
-      message: `${savedCount}/${symbols.length} fiyat güncellendi`,
-      data: results
+    if (!stock) {
+      stock = Stock.create({ symbol, name: data.name, sector: 'Unknown' });
+    }
+
+    Stock.updatePrice(stock.id, data.price, data.changePercent);
+    PriceHistory.create({
+      stock_id: stock.id,
+      price: data.price,
+      open_price: data.open,
+      high_price: data.high,
+      low_price: data.low,
+      volume: data.volume
     });
+
+    res.json({ success: true, message: 'Stock data updated', data });
   } catch (error) {
-    console.error('Update prices error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Sunucu hatası'
-    });
-  }
-});
-
-// Tüm hisseleri güncelle (protected)
-router.post('/prices/update-all', auth, async (req, res) => {
-  try {
-    const count = await YahooFinanceService.updateAllStockPrices();
-
-    res.json({
-      success: true,
-      message: `${count} hisse fiyatı güncellendi`,
-      data: { count }
-    });
-  } catch (error) {
-    console.error('Update all prices error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Sunucu hatası'
-    });
-  }
-});
-
-// Tarihsel veri çekme (protected)
-router.post('/:symbol/historical', auth, async (req, res) => {
-  try {
-    const symbol = req.params.symbol;
-    const { period1, period2, interval } = req.body;
-
-    const savedCount = await YahooFinanceService.saveHistoricalData(symbol, {
-      period1: period1 ? new Date(period1) : undefined,
-      period2: period2 ? new Date(period2) : undefined,
-      interval
-    });
-
-    res.json({
-      success: true,
-      message: `${savedCount} kayıt eklendi`,
-      data: { count: savedCount }
-    });
-  } catch (error) {
-    console.error('Save historical error:', error);
-    res.status(500).json({
-      success: false,
-      message: error.message || 'Sunucu hatası'
-    });
-  }
-});
-
-// Sektör listesi
-router.get('/sectors/list', async (req, res) => {
-  try {
-    const result = await Stock.findAll();
-    const sectors = [...new Set(result.map(s => s.sector))].filter(Boolean);
-
-    res.json({
-      success: true,
-      data: sectors
-    });
-  } catch (error) {
-    console.error('Get sectors error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Sunucu hatası'
-    });
+    console.error('Fetch stock error:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
   }
 });
 

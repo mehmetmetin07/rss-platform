@@ -1,27 +1,33 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Link } from 'react-router-dom';
 import api from '../services/api';
 
 const NewsList = ({ filters = {} }) => {
   const [news, setNews] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const hasFetched = useRef(false);
 
   useEffect(() => {
-    fetchNews();
-  }, [JSON.stringify(filters)]);
+    if (hasFetched.current) return;
+    hasFetched.current = true;
+    
+    const fetchNews = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const response = await api.getNews(filters);
+        setNews(response.data || []);
+      } catch (err) {
+        console.error('News fetch error:', err);
+        setError('Haberler yüklenemedi. Backend servisi çalışmıyor olabilir.');
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  const fetchNews = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const response = await api.getNews(filters);
-      setNews(response.data || []);
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
+    fetchNews();
+  }, []); // Boş bağımlılık listesi - sadece bir kez çalışacak
 
   const getSentimentClass = (category) => {
     switch (category) {
@@ -36,7 +42,7 @@ const NewsList = ({ filters = {} }) => {
   const formatDate = (dateString) => {
     const date = new Date(dateString);
     const now = new Date();
-    const diff = (now - date) / 1000; // saniye
+    const diff = (now - date) / 1000;
 
     if (diff < 60) return 'Az önce';
     if (diff < 3600) return `${Math.floor(diff / 60)} dakika önce`;
@@ -54,8 +60,18 @@ const NewsList = ({ filters = {} }) => {
 
   if (error) {
     return (
-      <div className="card p-6">
-        <p className="text-red-500">{error}</p>
+      <div className="card p-6 text-center">
+        <p className="text-red-500 mb-4">{error}</p>
+        <p className="text-sm text-gray-500 mb-4">Backend servisi başlatıldı mı?</p>
+        <button 
+          onClick={() => {
+            hasFetched.current = false;
+            window.location.reload();
+          }}
+          className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+        >
+          Sayfayı Yenile
+        </button>
       </div>
     );
   }
@@ -64,6 +80,7 @@ const NewsList = ({ filters = {} }) => {
     return (
       <div className="card p-6 text-center">
         <p className="text-gray-500">Haber bulunamadı</p>
+        <p className="text-sm text-gray-400 mt-2">RSS kaynaklarından haber çekilemedi</p>
       </div>
     );
   }
@@ -79,7 +96,9 @@ const NewsList = ({ filters = {} }) => {
             </span>
           </div>
           <div className="card-body">
-            <h3 className="text-lg font-bold mb-2">{item.title}</h3>
+            <Link to={`/news/${item.id}`}>
+              <h3 className="text-lg font-bold mb-2 hover:text-blue-600 cursor-pointer">{item.title}</h3>
+            </Link>
             {item.summary && (
               <p className="text-gray-500 text-sm mb-4">{item.summary}</p>
             )}

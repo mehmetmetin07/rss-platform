@@ -1,17 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../services/api';
 
 const StockList = ({ sector = null }) => {
   const [stocks, setStocks] = useState([]);
+  const [prices, setPrices] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  useEffect(() => {
-    fetchStocks();
-  }, [sector]);
-
-  const fetchStocks = async () => {
+  const fetchStocks = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -24,12 +21,28 @@ const StockList = ({ sector = null }) => {
       }
       
       setStocks(data.data || []);
+      
+      // Latest prices'ı çek
+      try {
+        const pricesData = await api.getLatestPrices();
+        const pricesMap = {};
+        (pricesData.data || []).forEach(p => {
+          pricesMap[p.symbol] = p;
+        });
+        setPrices(pricesMap);
+      } catch (priceErr) {
+        console.error('Prices fetch error:', priceErr);
+      }
     } catch (err) {
       setError(err.message);
     } finally {
       setLoading(false);
     }
-  };
+  }, [sector]);
+
+  useEffect(() => {
+    fetchStocks();
+  }, [fetchStocks]);
 
   const formatNumber = (num) => {
     if (!num) return '-';
@@ -84,14 +97,20 @@ const StockList = ({ sector = null }) => {
                 <div className="text-sm text-gray-500">{stock.sector}</div>
               </div>
               <div className="text-right">
-                {stock.market_cap && (
-                  <div className="text-sm font-bold">
-                    {formatNumber(stock.market_cap)} ₺
-                  </div>
+                {/* Fiyat bilgisi - API'den gelen latest price kullan */}
+                {prices[stock.symbol] && (
+                  <>
+                    <div className="text-lg font-bold">
+                      ${prices[stock.symbol].price?.toFixed(2) || 'N/A'}
+                    </div>
+                    <div className={`text-sm font-bold ${prices[stock.symbol].change_percent >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                      {prices[stock.symbol].change_percent >= 0 ? '+' : ''}{prices[stock.symbol].change_percent?.toFixed(2) || '0.00'}%
+                    </div>
+                  </>
                 )}
-                <div className="text-xs text-gray-500">
-                  {stock.is_active ? 'Aktif' : 'Pasif'}
-                </div>
+                {!prices[stock.symbol] && (
+                  <div className="text-sm text-gray-500">Yükleniyor...</div>
+                )}
               </div>
             </Link>
           ))}

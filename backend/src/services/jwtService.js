@@ -6,11 +6,7 @@ const JWT_EXPIRE = process.env.JWT_EXPIRE || '7d';
 class JWTService {
   static generateToken(user) {
     return jwt.sign(
-      {
-        id: user.id,
-        email: user.email,
-        role: user.role
-      },
+      { id: user.id, email: user.email, role: user.role },
       JWT_SECRET,
       { expiresIn: JWT_EXPIRE }
     );
@@ -19,15 +15,7 @@ class JWTService {
   static verifyToken(token) {
     try {
       return jwt.verify(token, JWT_SECRET);
-    } catch (error) {
-      return null;
-    }
-  }
-
-  static decodeToken(token) {
-    try {
-      return jwt.decode(token);
-    } catch (error) {
+    } catch {
       return null;
     }
   }

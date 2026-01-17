@@ -2,52 +2,24 @@ const JWTService = require('../services/jwtService');
 
 const auth = (req, res, next) => {
   try {
-    // Get token from header
-    const authHeader = req.headers.authorization;
-    
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return res.status(401).json({
-        success: false,
-        message: 'Yetkilendirme gerekli'
-      });
+    const header = req.headers.authorization;
+
+    if (!header || !header.startsWith('Bearer ')) {
+      return res.status(401).json({ success: false, message: 'Authorization required' });
     }
 
-    // Extract token
-    const token = authHeader.substring(7);
-
-    // Verify token
+    const token = header.substring(7);
     const decoded = JWTService.verifyToken(token);
-    
+
     if (!decoded) {
-      return res.status(401).json({
-        success: false,
-        message: 'Geçersiz token'
-      });
+      return res.status(401).json({ success: false, message: 'Invalid token' });
     }
 
-    // Add user to request
     req.user = decoded;
     next();
   } catch (error) {
-    console.error('Auth middleware error:', error);
-    res.status(401).json({
-      success: false,
-      message: 'Yetkilendirme başarısız'
-    });
+    res.status(401).json({ success: false, message: 'Authorization failed' });
   }
 };
 
-// Optional: Role-based authorization
-const authorize = (...roles) => {
-  return (req, res, next) => {
-    if (!roles.includes(req.user.role)) {
-      return res.status(403).json({
-        success: false,
-        message: 'Bu işlem için yetkiniz yok'
-      });
-    }
-    next();
-  };
-};
-
-module.exports = { auth, authorize };
+module.exports = { auth };

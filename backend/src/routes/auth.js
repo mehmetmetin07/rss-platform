@@ -5,126 +5,73 @@ const JWTService = require('../services/jwtService');
 
 const router = express.Router();
 
-// Register
 router.post('/register', async (req, res) => {
   try {
     const { email, password, full_name } = req.body;
 
-    // Validation
     if (!email || !password || !full_name) {
-      return res.status(400).json({
-        success: false,
-        message: 'Email, şifre ve isim gerekli'
-      });
+      return res.status(400).json({ success: false, message: 'All fields are required' });
     }
 
     if (password.length < 6) {
-      return res.status(400).json({
-        success: false,
-        message: 'Şifre en az 6 karakter olmalı'
-      });
+      return res.status(400).json({ success: false, message: 'Password must be at least 6 characters' });
     }
 
-    // Check if user exists
-    const existingUser = await User.findByEmail(email);
-    if (existingUser) {
-      return res.status(400).json({
-        success: false,
-        message: 'Bu email zaten kayıtlı'
-      });
+    const existing = User.findByEmail(email);
+    if (existing) {
+      return res.status(400).json({ success: false, message: 'Email already exists' });
     }
 
-    // Hash password
     const password_hash = await bcrypt.hash(password, 10);
-
-    // Create user
-    const user = await User.create({
-      email,
-      password_hash,
-      full_name
-    });
-
-    // Generate token
+    const user = User.create({ email, password_hash, full_name });
     const token = JWTService.generateToken(user);
 
     res.status(201).json({
       success: true,
-      message: 'Kayıt başarılı',
+      message: 'Registration successful',
       data: {
-        user: {
-          id: user.id,
-          email: user.email,
-          full_name: user.full_name,
-          role: user.role
-        },
+        user: { id: user.id, email: user.email, full_name: user.full_name, role: user.role },
         token
       }
     });
   } catch (error) {
     console.error('Register error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Sunucu hatası'
-    });
+    res.status(500).json({ success: false, message: 'Server error' });
   }
 });
 
-// Login
 router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    // Validation
     if (!email || !password) {
-      return res.status(400).json({
-        success: false,
-        message: 'Email ve şifre gerekli'
-      });
+      return res.status(400).json({ success: false, message: 'Email and password required' });
     }
 
-    // Find user
-    const user = await User.findByEmail(email);
+    const user = User.findByEmail(email);
     if (!user) {
-      return res.status(401).json({
-        success: false,
-        message: 'Geçersiz email veya şifre'
-      });
+      return res.status(401).json({ success: false, message: 'Invalid credentials' });
     }
 
-    // Check password
-    const isMatch = await bcrypt.compare(password, user.password_hash);
-    if (!isMatch) {
-      return res.status(401).json({
-        success: false,
-        message: 'Geçersiz email veya şifre'
-      });
+    const valid = await bcrypt.compare(password, user.password_hash);
+    if (!valid) {
+      return res.status(401).json({ success: false, message: 'Invalid credentials' });
     }
 
-    // Update last login
-    await User.updateLastLogin(user.id);
-
-    // Generate token
+    User.updateLastLogin(user.id);
     const token = JWTService.generateToken(user);
 
     res.json({
       success: true,
-      message: 'Giriş başarılı',
+      message: 'Login successful',
       data: {
-        user: {
-          id: user.id,
-          email: user.email,
-          full_name: user.full_name,
-          role: user.role
-        },
+        user: { id: user.id, email: user.email, full_name: user.full_name, role: user.role },
         token
       }
     });
   } catch (error) {
     console.error('Login error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Sunucu hatası'
-    });
+    res.status(500).json({ success: false, message: 'Server error' });
   }
 });
 
