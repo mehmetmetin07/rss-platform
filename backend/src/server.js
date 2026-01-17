@@ -5,8 +5,10 @@ const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 
 const authRoutes = require('./routes/auth');
+const newsRoutes = require('./routes/news');
 const { auth } = require('./middleware/auth');
 const pool = require('./config/database');
+const rssCron = require('./jobs/rssCron');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -34,6 +36,7 @@ app.use(express.urlencoded({ extended: true }));
 
 // Routes
 app.use('/api/auth', authRoutes);
+app.use('/api/news', newsRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {
@@ -88,6 +91,9 @@ app.use((err, req, res, next) => {
     message: err.message || 'Sunucu hatası'
   });
 });
+
+// Start RSS cron job
+rssCron.start();
 
 // Start server
 app.listen(PORT, () => {
