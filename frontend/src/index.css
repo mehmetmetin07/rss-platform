@@ -10,6 +10,7 @@ body {
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  background-color: #f1f1f1;
 }
 
 code {
@@ -27,7 +28,7 @@ code {
 }
 
 ::-webkit-scrollbar-track {
-  background: #f1f1f1f;
+  background: #f3f3f3;
 }
 
 ::-webkit-scrollbar-thumb {
@@ -63,6 +64,10 @@ code {
   justify-content: space-between;
 }
 
+.justify-center {
+  justify-content: center;
+}
+
 .gap-2 {
   gap: 0.5rem;
 }
@@ -83,12 +88,32 @@ code {
   font-size: 1.125rem;
 }
 
+.text-2xl {
+  font-size: 1.5rem;
+}
+
+.text-3xl {
+  font-size: 1.875rem;
+}
+
 .font-bold {
   font-weight: 700;
 }
 
 .text-gray-500 {
   color: #6b7280;
+}
+
+.text-gray-600 {
+  color: #4b5563;
+}
+
+.text-blue-600 {
+  color: #2563eb;
+}
+
+.text-blue-800 {
+  color: #1e40af;
 }
 
 .text-red-500 {
@@ -101,6 +126,10 @@ code {
 
 .bg-gray-100 {
   background-color: #f3f4f6;
+}
+
+.bg-gray-200 {
+  background-color: #e5e7eb;
 }
 
 .bg-white {
@@ -120,9 +149,35 @@ code {
   padding-bottom: 0.5rem;
 }
 
-.px-4 {
-  padding-left: 1rem;
-  padding-right: 1rem;
+.py-6 {
+  padding-top: 1.5rem;
+  padding-bottom: 1.5rem;
+}
+
+.py-12 {
+  padding-top: 3rem;
+  padding-bottom: 3rem;
+}
+
+.px-2 {
+  padding-left: 0.5rem;
+  padding-right: 0.5rem;
+}
+
+.mb-2 {
+  margin-bottom: 0.5rem;
+}
+
+.mb-4 {
+  margin-bottom: 1rem;
+}
+
+.mb-6 {
+  margin-bottom: 1.5rem;
+}
+
+.mb-8 {
+  margin-bottom: 2rem;
 }
 
 .rounded {
@@ -145,8 +200,36 @@ code {
   background-color: #f3f4f6;
 }
 
+.hover\:bg-gray-200:hover {
+  background-color: #e5e7eb;
+}
+
 .hover\:text-blue-600:hover {
   color: #2563eb;
+}
+
+.hover\:underline:hover {
+  text-decoration: underline;
+}
+
+.grid {
+  display: grid;
+}
+
+.grid-cols-2 {
+  grid-template-columns: repeat(2, 1fr);
+}
+
+.gap-4 {
+  gap: 1rem;
+}
+
+.max-w-md {
+  max-width: 28rem;
+}
+
+.inline-block {
+  display: inline-block;
 }
 
 /* Button styles */
@@ -160,6 +243,7 @@ code {
   cursor: pointer;
   transition: all 0.2s;
   border: none;
+  text-decoration: none;
 }
 
 .btn-primary {
@@ -194,6 +278,12 @@ code {
   outline: none;
   border-color: #2563eb;
   box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.label {
+  display: block;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
 }
 
 /* Card styles */
