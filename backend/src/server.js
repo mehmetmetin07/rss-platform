@@ -22,7 +22,9 @@ app.use(express.json());
 app.use('/api/auth', authRoutes);
 app.use('/api/news', newsRoutes);
 app.use('/api/stocks', stocksRoutes);
-app.use('/api/currency', currencyRoutes);
+app.use('/api/currency', require('./routes/currency'));
+app.use('/api/settings', require('./routes/settings'));
+app.use('/api/ai', require('./routes/ai'));
 
 app.get('/api/health', (req, res) => {
   res.json({ success: true, message: 'Server running', timestamp: new Date().toISOString() });

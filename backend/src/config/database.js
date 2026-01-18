@@ -20,6 +20,7 @@ db.exec(`
     password_hash TEXT NOT NULL,
     full_name TEXT NOT NULL,
     role TEXT DEFAULT 'user',
+    gemini_api_key TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
   );
@@ -94,6 +95,17 @@ try {
   console.error('Migration check failed:', error.message);
 }
 
+// Auto-migration for gemini_api_key column
+try {
+  const userTableInfo = db.prepare("PRAGMA table_info(users)").all();
+  const hasGeminiKey = userTableInfo.some(col => col.name === 'gemini_api_key');
+  if (!hasGeminiKey) {
+    db.prepare("ALTER TABLE users ADD COLUMN gemini_api_key TEXT").run();
+    console.log('✅ Auto-migration: Added gemini_api_key column to users table');
+  }
+} catch (error) {
+  console.error('Gemini key migration check failed:', error.message);
+}
 
 const adminExists = db.prepare("SELECT id FROM users WHERE email = 'admin@example.com'").get();
 if (!adminExists) {

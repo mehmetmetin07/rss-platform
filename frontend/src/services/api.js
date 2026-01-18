@@ -45,7 +45,14 @@ const api = {
   },
   updateAllPrices: () => request('/stocks/prices/update-all', { method: 'POST' }),
   addStock: (data) => request('/stocks', { method: 'POST', body: JSON.stringify(data) }),
-  fetchStock: (symbol) => request(`/stocks/${symbol}/fetch`, { method: 'POST' })
+  addStock: (data) => request('/stocks', { method: 'POST', body: JSON.stringify(data) }),
+  fetchStock: (symbol) => request(`/stocks/${symbol}/fetch`, { method: 'POST' }),
+
+  // Settings & AI
+  saveApiKey: (key) => request('/settings/key', { method: 'POST', body: JSON.stringify({ apiKey: key }) }),
+  getApiKeyStatus: () => request('/settings/status'),
+  removeApiKey: () => request('/settings/key', { method: 'DELETE' }),
+  analyzeStock: (data) => request('/ai/analyze', { method: 'POST', body: JSON.stringify(data) })
 };
 
 export default api;

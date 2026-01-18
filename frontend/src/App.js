@@ -3,6 +3,8 @@ import { BrowserRouter as Router, Routes, Route, Link, useParams, useNavigate } 
 import api from './services/api';
 import StockChart from './components/StockChart';
 import LanguageSwitcher from './components/LanguageSwitcher';
+import SettingsPage from './pages/SettingsPage';
+import ReactMarkdown from 'react-markdown';
 import { useLanguage } from './contexts/LanguageContext';
 import { formatPrice } from './utils/currency';
 import './index.css';
@@ -52,7 +54,10 @@ function App() {
               <Link to="/stocks" className="nav-link">{t('stocks')}</Link>
               <Link to="/sources" className="nav-link">{t('sources')}</Link>
               {user ? (
-                <button onClick={handleLogout} className="btn-secondary">{t('logout')}</button>
+                <>
+                  <Link to="/settings" className="nav-link">{t('settings')}</Link>
+                  <button onClick={handleLogout} className="btn-secondary">{t('logout')}</button>
+                </>
               ) : (
                 <Link to="/login" className="btn-primary">{t('login')}</Link>
               )}
@@ -71,6 +76,7 @@ function App() {
             <Route path="/sources" element={<SourcesPage />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
+            <Route path="/settings" element={<SettingsPage />} />
           </Routes>
         </main>
 
@@ -225,7 +231,7 @@ function NewsDetailPage() {
 function StocksPage() {
   const [stocks, setStocks] = useState([]);
   const [loading, setLoading] = useState(true);
-  const { t, language, exchangeRate } = useLanguage();
+  const { t, tSector, language, exchangeRate } = useLanguage();
   const [showForm, setShowForm] = useState(false);
   const [newSymbol, setNewSymbol] = useState('');
   const [message, setMessage] = useState('');
@@ -315,7 +321,7 @@ function StocksPage() {
                 {stock.change_percent >= 0 ? '+' : ''}{(stock.change_percent || 0).toFixed(2)}%
               </span>
             </div>
-            <div className="stock-sector">{stock.sector}</div>
+            <div className="stock-sector">{tSector(stock.sector)}</div>
           </Link>
         ))}
         {stocks.length === 0 && <p className="empty-state">{t('noStocks')}</p>}
@@ -329,7 +335,13 @@ function StockDetailPage() {
   const [stock, setStock] = useState(null);
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
-  const { t, language, exchangeRate } = useLanguage();
+  const { t, tSector, language, exchangeRate } = useLanguage();
+
+  // AI State
+  const [aiAnalysis, setAiAnalysis] = useState(null);
+  const [referencedNews, setReferencedNews] = useState([]);
+  const [analyzing, setAnalyzing] = useState(false);
+  const [aiError, setAiError] = useState('');
 
   useEffect(() => {
     Promise.all([
@@ -341,6 +353,21 @@ function StockDetailPage() {
       setLoading(false);
     }).catch(() => setLoading(false));
   }, [symbol]);
+
+  const handleAnalyze = async () => {
+    setAnalyzing(true);
+    setAiError('');
+    setAiAnalysis(null);
+    try {
+      const res = await api.analyzeStock({ symbol: stock.symbol, language });
+      setAiAnalysis(res.analysis);
+      setReferencedNews(res.referenced_news || []);
+    } catch (error) {
+      setAiError(error.message);
+    } finally {
+      setAnalyzing(false);
+    }
+  };
 
   if (loading) return <div className="loading"><div className="spinner"></div></div>;
   if (!stock) return <p>Stock not found</p>;
@@ -368,9 +395,56 @@ function StockDetailPage() {
           </div>
           <div className="info-card">
             <span className="label">{t('sector')}</span>
-            <span className="value">{stock.sector || 'N/A'}</span>
+            <span className="value">{tSector(stock.sector) || 'N/A'}</span>
           </div>
         </div>
+
+        {/* AI Analysis Section */}
+        <div className="ai-section">
+          <div className="ai-content">
+            <h3>{t('aiAnalysis')}</h3>
+            <p>{t('aiSettingsDesc')}</p>
+          </div>
+          <button
+            onClick={handleAnalyze}
+            className="btn btn-ai"
+            disabled={analyzing}
+          >
+            {analyzing ? t('analyzing') : t('analyzeAi')}
+          </button>
+        </div>
+
+        {aiError && <div className="message error">{aiError}</div>}
+
+        {aiAnalysis && (
+          <div className="analysis-result">
+            <div className="analysis-header">
+              <span className="ai-badge">Gemini 1.5 Pro</span>
+              <span className="ai-date">{new Date().toLocaleString()}</span>
+            </div>
+            <div className="markdown-content">
+              <ReactMarkdown>{aiAnalysis}</ReactMarkdown>
+            </div>
+
+            {referencedNews.length > 0 && (
+              <div className="news-references">
+                <h4>{t('newsReferences')}</h4>
+                <ul className="ref-list">
+                  {referencedNews.map((news, i) => (
+                    <li key={i}>
+                      <strong>{news.source_name}:</strong> {news.title}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            <div className="disclaimer">
+              {t('aiDisclaimer')}
+            </div>
+          </div>
+        )}
+
         <div className="chart-section">
           <h2>{t('priceChart')}</h2>
           <StockChart symbol={stock.symbol} currency={stock.currency || 'USD'} />
