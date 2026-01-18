@@ -17,7 +17,7 @@ function SettingsPage() {
     const checkKeyStatus = async () => {
         try {
             const res = await api.getApiKeyStatus();
-            setSavedKey(res.maskedKey);
+            setSavedKey(res.maskedGLMKey);
             setLoading(false);
         } catch (error) {
             console.error(error);
@@ -77,7 +77,7 @@ function SettingsPage() {
                         <input
                             type={showKey ? "text" : "password"}
                             className="input"
-                            placeholder="sk-..."
+                            placeholder="Z.AI GLM-4.7 API Key..."
                             value={apiKey}
                             onChange={(e) => setApiKey(e.target.value)}
                             required
@@ -92,8 +92,9 @@ function SettingsPage() {
                     </div>
                     <button type="submit" className="btn btn-primary">{t('saveKey')}</button>
                 </form>
-                {message && <p className="message">{message}</p>}
             </div>
+
+            {message && <p className="message">{message}</p>}
         </div>
     );
 }

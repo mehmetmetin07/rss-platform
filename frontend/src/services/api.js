@@ -50,8 +50,10 @@ const api = {
 
   // Settings & AI
   saveApiKey: (key) => request('/settings/key', { method: 'POST', body: JSON.stringify({ apiKey: key }) }),
+  saveHFApiKey: (key) => request('/settings/hf-key', { method: 'POST', body: JSON.stringify({ apiKey: key }) }),
   getApiKeyStatus: () => request('/settings/status'),
   removeApiKey: () => request('/settings/key', { method: 'DELETE' }),
+  removeHFApiKey: () => request('/settings/hf-key', { method: 'DELETE' }),
   analyzeStock: (data) => request('/ai/analyze', { method: 'POST', body: JSON.stringify(data) })
 };
 

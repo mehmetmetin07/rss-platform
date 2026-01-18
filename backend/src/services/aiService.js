@@ -2,58 +2,110 @@ const axios = require('axios');
 
 async function generateAnalysis(symbol, stockData, newsList, language, apiKey) {
     if (!apiKey) {
-        throw new Error('Gemini API Key is missing');
+        throw new Error('GLM API Key is required');
     }
 
     try {
         const isTurkish = language === 'tr';
 
         // Prepare News Context
-        let newsContext = "No recent news available.";
+        let newsContext = isTurkish
+            ? "Son 30 gün içinde bu hisse ile ilgili haber bulunamadı."
+            : "No recent news available in the last 30 days.";
+
         if (newsList && newsList.length > 0) {
             newsContext = newsList.map((news, idx) =>
-                `[${idx + 1}] ${news.source_name || 'News'}: ${news.title} - ${news.summary || news.content?.substring(0, 200)}...`
-            ).join('\n\n');
+                `[${idx + 1}] ${news.source_name || 'News'} (${new Date(news.publish_date).toLocaleDateString()}): ${news.title}`
+            ).join('\n');
+        }
+
+        // Build technical analysis summary
+        let technicalSummary = '';
+        if (stockData.fiftyDayAverage && stockData.twoHundredDayAverage) {
+            const trend = stockData.price > stockData.fiftyDayAverage ?
+                (isTurkish ? 'yükseliş trendinde' : 'in an uptrend') :
+                (isTurkish ? 'düşüş trendinde' : 'in a downtrend');
+            technicalSummary = isTurkish
+                ? `\n\nTeknik Göstergeler:\n- 50 günlük ortalama: ${stockData.fiftyDayAverage} ${stockData.currency}\n- 200 günlük ortalama: ${stockData.twoHundredDayAverage} ${stockData.currency}\n- Fiyat ${trend}`
+                : `\n\nTechnical Indicators:\n- 50-day MA: ${stockData.fiftyDayAverage} ${stockData.currency}\n- 200-day MA: ${stockData.twoHundredDayAverage} ${stockData.currency}\n- Price ${trend}`;
+        }
+
+        // Build fundamental summary
+        let fundamentalSummary = '';
+        if (stockData.trailingPE || stockData.marketCap) {
+            fundamentalSummary = isTurkish ? '\n\nTemel Göstergeler:\n' : '\n\nFundamental Metrics:\n';
+            if (stockData.trailingPE) {
+                fundamentalSummary += isTurkish
+                    ? `- F/K Oranı: ${stockData.trailingPE.toFixed(2)}\n`
+                    : `- P/E Ratio: ${stockData.trailingPE.toFixed(2)}\n`;
+            }
+            if (stockData.marketCap) {
+                const marketCapB = (stockData.marketCap / 1000000000).toFixed(2);
+                fundamentalSummary += isTurkish
+                    ? `- Piyasa Değeri: ${marketCapB}B ${stockData.currency}\n`
+                    : `- Market Cap: ${marketCapB}B ${stockData.currency}\n`;
+            }
+        }
+
+        // Build company info section
+        let companyInfo = '';
+        if (stockData.businessSummary) {
+            companyInfo = isTurkish
+                ? `\n\n## Şirket Hakkında\n${stockData.businessSummary}\n`
+                : `\n\n## About the Company\n${stockData.businessSummary}\n`;
+
+            if (stockData.industry || stockData.fullTimeEmployees) {
+                companyInfo += isTurkish ? '\n**Detaylar:**\n' : '\n**Details:**\n';
+                if (stockData.industry) companyInfo += `- ${isTurkish ? 'Sektör' : 'Industry'}: ${stockData.industry}\n`;
+                if (stockData.fullTimeEmployees) companyInfo += `- ${isTurkish ? 'Çalışan Sayısı' : 'Employees'}: ${stockData.fullTimeEmployees.toLocaleString()}\n`;
+            }
         }
 
         // Construct Prompt
         const promptText = isTurkish
-            ? `Sen bir finansal analiz asistanısın. Görevin, sadece sağlanan haberlere dayanarak ${stockData.name} (${symbol}) hissesi için piyasa duyarlılığını analiz etmektir.
+            ? `Sen bir finansal analiz uzmanısın. ${stockData.name} (${symbol}) hissesi için aşağıdaki verilere dayanarak kapsamlı bir analiz yap.
+${companyInfo}
+## Piyasa Verileri
+- Güncel Fiyat: ${stockData.price} ${stockData.currency}
+- Değişim: ${stockData.change_percent > 0 ? '+' : ''}${stockData.change_percent}%
+- Gün Aralığı: ${stockData.dayLow} - ${stockData.dayHigh} ${stockData.currency}
+- Hacim: ${stockData.volume.toLocaleString()}${technicalSummary}${fundamentalSummary}
 
-Piyasa Verileri:
-- Fiyat: ${stockData.price} ${stockData.currency}
-- Değişim: ${stockData.change_percent}%
-
-Haber Bağlamı:
+## Son Haberler (30 gün)
 ${newsContext}
 
-Kurallar:
-1. SADECE yukarıdaki haberleri kaynak olarak kullan.
-2. Haber numaralarını referans göster (örn: [1], [2]).
-3. Kesinlikle yatırım tavsiyesi verme.
-4. Kısa ve öz, Markdown formatında yaz.
-5. "Piyasa verileri...", "Haberlere göre..." gibi ifadeler kullan.
+## Görevin
+1. **Temel Analiz:** F/K oranı ve piyasa değerine bakarak değerleme yap
+2. **Teknik Analiz:** Trend, destek/direnç seviyeleri, hareketli ortalamalar
+3. **Haber Analizi:** Haberlerin hisse üzerindeki etkisini değerlendir
+4. **Risk Değerlendirmesi:** Potansiyel riskler neler?
 
-Sonunda şunu ekle: "Bu analiz yatırım tavsiyesi değildir."`
-            : `You are a financial analysis assistant. Your task is to analyze market sentiment for ${stockData.name} (${symbol}) based ONLY on the provided news context.
+**Önemli:** Haber referanslarını [1], [2] formatında göster. Kesinlikle AL/SAT tavsiyesi verme!
 
-Market Data:
-- Price: ${stockData.price} ${stockData.currency}
-- Change: ${stockData.change_percent}%
+Markdown formatında yaz. Sonunda ekle: "Bu analiz yatırım tavsiyesi değildir."`
+            : `You are a financial analysis expert. Provide a comprehensive analysis of ${stockData.name} (${symbol}) based on the data below.
+${companyInfo}
+## Market Data
+- Current Price: ${stockData.price} ${stockData.currency}
+- Change: ${stockData.change_percent > 0 ? '+' : ''}${stockData.change_percent}%
+- Day Range: ${stockData.dayLow} - ${stockData.dayHigh} ${stockData.currency}
+- Volume: ${stockData.volume.toLocaleString()}${technicalSummary}${fundamentalSummary}
 
-News Context:
+## Recent News (Last 30 days)
 ${newsContext}
 
-Rules:
-1. Use ONLY the news above as sources.
-2. Reference news items by number (e.g., [1], [2]).
-3. Do NOT provide investment advice.
-4. Keep it concise and in Markdown format.
-5. Use phrases like "According to reports...", "Market data suggests...".
+## Your Task
+1. **Fundamental Analysis:** Evaluate valuation using P/E ratio and market cap
+2. **Technical Analysis:** Assess trend, support/resistance, moving averages
+3. **News Impact:** How do recent news affect sentiment?
+4. **Risk Assessment:** What are potential risks?
 
-End with: "This is not financial advice."`;
+**Important:** Reference news as [1], [2]. Do NOT provide buy/sell recommendations!
 
-        // Z.AI GLM-4.7 API (Coding endpoint for GLM Coding Plan)
+Write in Markdown format. End with: "This is not financial advice."`;
+
+        // GLM-4.7 API Call
+        console.log('[AI Service] Using GLM-4.7 for analysis');
         const response = await axios.post(
             'https://api.z.ai/api/coding/paas/v4/chat/completions',
             {
@@ -63,7 +115,7 @@ End with: "This is not financial advice."`;
                     content: promptText
                 }],
                 thinking: {
-                    type: 'enabled'  // Enable GLM-4.7's thinking mode
+                    type: 'enabled'
                 },
                 temperature: 0.6,
                 max_tokens: 4096
@@ -76,7 +128,6 @@ End with: "This is not financial advice."`;
             }
         );
 
-        // Extract text from OpenAI-compatible response
         const analysisText = response.data?.choices?.[0]?.message?.content;
 
         if (!analysisText) {
@@ -102,7 +153,7 @@ End with: "This is not financial advice."`;
             JSON.stringify(errorLog, null, 2)
         );
 
-        console.error('=== Gemini API Error Details ===');
+        console.error('=== AI API Error Details ===');
         console.error('Error type:', error.constructor.name);
         console.error('Error message:', error.message);
 

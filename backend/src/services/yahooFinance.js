@@ -129,6 +129,62 @@ class StockService {
       return { valid: false };
     }
   }
+
+  /**
+   * Get enhanced quote with fundamental and technical metrics
+   * @param {string} symbol - Stock symbol
+   * @returns {Promise<Object>} Enhanced stock data
+   */
+  static async getEnhancedQuote(symbol) {
+    try {
+      const yf = await getYahooFinance();
+      const quote = await yf.quote(symbol);
+
+      if (!quote || !quote.regularMarketPrice) {
+        return null;
+      }
+
+      // Fix: Borsa Istanbul stocks (.IS) should always be in TRY
+      const currency = symbol.toUpperCase().endsWith('.IS') ? 'TRY' : (quote.currency || 'USD');
+
+      return {
+        symbol: quote.symbol,
+        name: quote.longName || quote.shortName || quote.symbol,
+        price: quote.regularMarketPrice || 0,
+        change: quote.regularMarketChange || 0,
+        change_percent: quote.regularMarketChangePercent || 0,
+        currency: currency,
+
+        // Company information
+        businessSummary: quote.longBusinessSummary || null,
+        industry: quote.industry || null,
+        sector: quote.sector || null,
+        website: quote.website || null,
+        fullTimeEmployees: quote.fullTimeEmployees || null,
+
+        // Fundamental metrics
+        trailingPE: quote.trailingPE || null,
+        forwardPE: quote.forwardPE || null,
+        marketCap: quote.marketCap || null,
+
+        // Technical indicators
+        fiftyDayAverage: quote.fiftyDayAverage || null,
+        twoHundredDayAverage: quote.twoHundredDayAverage || null,
+
+        // Volume metrics
+        volume: quote.regularMarketVolume || 0,
+        averageVolume: quote.averageVolume || quote.averageDailyVolume10Day || null,
+
+        // Day range
+        dayHigh: quote.regularMarketDayHigh || 0,
+        dayLow: quote.regularMarketDayLow || 0,
+        dayOpen: quote.regularMarketOpen || 0
+      };
+    } catch (error) {
+      console.error(`Enhanced quote error (${symbol}): ${error.message}`);
+      return null;
+    }
+  }
 }
 
 module.exports = StockService;

@@ -343,6 +343,10 @@ function StockDetailPage() {
   const [analyzing, setAnalyzing] = useState(false);
   const [aiError, setAiError] = useState('');
 
+  // News Sidebar State
+  const [sidebarNews, setSidebarNews] = useState([]);
+  const [loadingNews, setLoadingNews] = useState(true);
+
   useEffect(() => {
     Promise.all([
       api.getStockDetail(symbol),
@@ -351,8 +355,23 @@ function StockDetailPage() {
       setStock(stockRes.data);
       setHistory(historyRes.data || []);
       setLoading(false);
+
+      // Fetch live news for sidebar
+      fetchSidebarNews(stockRes.data);
     }).catch(() => setLoading(false));
   }, [symbol]);
+
+  const fetchSidebarNews = async (stockData) => {
+    try {
+      // Call same AI endpoint just to get news
+      const res = await api.analyzeStock({ symbol: stockData.symbol, language });
+      setSidebarNews(res.referencedNews || []);
+      setLoadingNews(false);
+    } catch (error) {
+      console.error('Error fetching sidebar news:', error);
+      setLoadingNews(false);
+    }
+  };
 
   const handleAnalyze = async () => {
     setAnalyzing(true);
@@ -361,7 +380,9 @@ function StockDetailPage() {
     try {
       const res = await api.analyzeStock({ symbol: stock.symbol, language });
       setAiAnalysis(res.analysis);
-      setReferencedNews(res.referenced_news || []);
+      setReferencedNews(res.referencedNews || []);
+      // Update sidebar news too
+      setSidebarNews(res.referencedNews || []);
     } catch (error) {
       setAiError(error.message);
     } finally {
@@ -373,108 +394,139 @@ function StockDetailPage() {
   if (!stock) return <p>Stock not found</p>;
 
   return (
-    <div className="page">
+    <div className="page stock-detail-container">
       <Link to="/stocks" className="back-link">← Back to Stocks</Link>
-      <div className="stock-detail">
-        <div className="stock-header">
-          <h1>{stock.symbol}</h1>
-          <p className="stock-name">{stock.name}</p>
-        </div>
-        <div className="stock-info-grid">
-          <div className="info-card">
-            <span className="label">{t('price')}</span>
-            <span className="value">
-              {formatPrice(stock.price || 0, stock.currency || 'USD', language, exchangeRate)}
-            </span>
-          </div>
-          <div className="info-card">
-            <span className="label">{t('change')}</span>
-            <span className={`value ${stock.change_percent >= 0 ? 'positive' : 'negative'}`}>
-              {stock.change_percent >= 0 ? '+' : ''}{(stock.change_percent || 0).toFixed(2)}%
-            </span>
-          </div>
-          <div className="info-card">
-            <span className="label">{t('sector')}</span>
-            <span className="value">{tSector(stock.sector) || 'N/A'}</span>
-          </div>
-        </div>
 
-        {/* AI Analysis Section */}
-        <div className="ai-section">
-          <div className="ai-content">
-            <h3>{t('aiAnalysis')}</h3>
-            <p>{t('aiSettingsDesc')}</p>
-          </div>
-          <button
-            onClick={handleAnalyze}
-            className="btn btn-ai"
-            disabled={analyzing}
-          >
-            {analyzing ? t('analyzing') : t('analyzeAi')}
-          </button>
-        </div>
+      <div className="stock-detail-layout">
+        {/* Left Sidebar - News */}
+        <aside className="news-sidebar">
+          <h3>{t('recentNews') || 'Güncel Haberler'}</h3>
+          {loadingNews ? (
+            <div className="loading-sm"><div className="spinner-sm"></div></div>
+          ) : sidebarNews.length > 0 ? (
+            <ul className="news-list">
+              {sidebarNews.map((news, i) => (
+                <li key={i} className="news-item">
+                  <div className="news-source">{news.source}</div>
+                  <div className="news-title">{news.title}</div>
+                  <div className="news-date">{news.date}</div>
+                  {news.url && (
+                    <a href={news.url} target="_blank" rel="noopener noreferrer" className="news-link">
+                      Haberi Oku →
+                    </a>
+                  )}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="empty-news">Son 30 gün içinde haber bulunamadı.</p>
+          )}
+        </aside>
 
-        {aiError && <div className="message error">{aiError}</div>}
-
-        {aiAnalysis && (
-          <div className="analysis-result">
-            <div className="analysis-header">
-              <span className="ai-badge">GLM-4.7</span>
-              <span className="ai-date">{new Date().toLocaleString()}</span>
+        {/* Main Content */}
+        <div className="stock-detail-main">
+          <div className="stock-detail">
+            <div className="stock-header">
+              <h1>{stock.symbol}</h1>
+              <p className="stock-name">{stock.name}</p>
             </div>
-            <div className="markdown-content">
-              <ReactMarkdown>{aiAnalysis}</ReactMarkdown>
+            <div className="stock-info-grid">
+              <div className="info-card">
+                <span className="label">{t('price')}</span>
+                <span className="value">
+                  {formatPrice(stock.price || 0, stock.currency || 'USD', language, exchangeRate)}
+                </span>
+              </div>
+              <div className="info-card">
+                <span className="label">{t('change')}</span>
+                <span className={`value ${stock.change_percent >= 0 ? 'positive' : 'negative'}`}>
+                  {stock.change_percent >= 0 ? '+' : ''}{(stock.change_percent || 0).toFixed(2)}%
+                </span>
+              </div>
+              <div className="info-card">
+                <span className="label">{t('sector')}</span>
+                <span className="value">{tSector(stock.sector) || 'N/A'}</span>
+              </div>
             </div>
 
-            {referencedNews.length > 0 && (
-              <div className="news-references">
-                <h4>{t('newsReferences')}</h4>
-                <ul className="ref-list">
-                  {referencedNews.map((news, i) => (
-                    <li key={i}>
-                      <strong>{news.source_name}:</strong> {news.title}
-                    </li>
-                  ))}
-                </ul>
+            {/* AI Analysis Section */}
+            <div className="ai-section">
+              <div className="ai-content">
+                <h3>{t('aiAnalysis')}</h3>
+                <p>{t('aiSettingsDesc')}</p>
+              </div>
+              <button
+                onClick={handleAnalyze}
+                className="btn btn-ai"
+                disabled={analyzing}
+              >
+                {analyzing ? t('analyzing') : t('analyzeAi')}
+              </button>
+            </div>
+
+            {aiError && <div className="message error">{aiError}</div>}
+
+            {aiAnalysis && (
+              <div className="analysis-result">
+                <div className="analysis-header">
+                  <span className="ai-badge">GLM-4.7</span>
+                  <span className="ai-date">{new Date().toLocaleString()}</span>
+                </div>
+                <div className="markdown-content">
+                  <ReactMarkdown>{aiAnalysis}</ReactMarkdown>
+                </div>
+
+                {referencedNews.length > 0 && (
+                  <div className="news-references">
+                    <h4>{t('newsReferences')}</h4>
+                    <ul className="ref-list">
+                      {referencedNews.map((news, i) => (
+                        <li key={i}>
+                          <strong>{news.source}:</strong> {news.title}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                <div className="disclaimer">
+                  {t('aiDisclaimer')}
+                </div>
               </div>
             )}
 
-            <div className="disclaimer">
-              {t('aiDisclaimer')}
+            <div className="chart-section">
+              <h2>{t('priceChart')}</h2>
+              <StockChart symbol={stock.symbol} currency={stock.currency || 'USD'} />
+            </div>
+            <div className="history-section">
+              <h2>Price History</h2>
+              {history.length > 0 ? (
+                <table className="history-table">
+                  <thead>
+                    <tr>
+                      <th>Date</th>
+                      <th>Price</th>
+                      <th>High</th>
+                      <th>Low</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {history.map((h, i) => (
+                      <tr key={i}>
+                        <td>{new Date(h.recorded_at).toLocaleDateString()}</td>
+                        <td>${(h.price || 0).toFixed(2)}</td>
+                        <td>${(h.high_price || 0).toFixed(2)}</td>
+                        <td>${(h.low_price || 0).toFixed(2)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              ) : (
+                <p className="empty-state">No price history yet. Click "Update Prices" on the Stocks page.</p>
+              )}
             </div>
           </div>
-        )}
-
-        <div className="chart-section">
-          <h2>{t('priceChart')}</h2>
-          <StockChart symbol={stock.symbol} currency={stock.currency || 'USD'} />
-        </div>
-        <div className="history-section">
-          <h2>Price History</h2>
-          {history.length > 0 ? (
-            <table className="history-table">
-              <thead>
-                <tr>
-                  <th>Date</th>
-                  <th>Price</th>
-                  <th>High</th>
-                  <th>Low</th>
-                </tr>
-              </thead>
-              <tbody>
-                {history.map((h, i) => (
-                  <tr key={i}>
-                    <td>{new Date(h.recorded_at).toLocaleDateString()}</td>
-                    <td>${(h.price || 0).toFixed(2)}</td>
-                    <td>${(h.high_price || 0).toFixed(2)}</td>
-                    <td>${(h.low_price || 0).toFixed(2)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          ) : (
-            <p className="empty-state">No price history yet. Click "Update Prices" on the Stocks page.</p>
-          )}
         </div>
       </div>
     </div>
