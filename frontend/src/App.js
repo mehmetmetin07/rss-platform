@@ -419,7 +419,7 @@ function StockDetailPage() {
         {aiAnalysis && (
           <div className="analysis-result">
             <div className="analysis-header">
-              <span className="ai-badge">Gemini 1.5 Pro</span>
+              <span className="ai-badge">GLM-4.7</span>
               <span className="ai-date">{new Date().toLocaleString()}</span>
             </div>
             <div className="markdown-content">
